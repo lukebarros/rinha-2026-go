@@ -1,34 +1,33 @@
-# Stage 1: pré-processamento (roda no build, não em runtime)
-FROM golang:1.22-alpine AS preprocessor
-WORKDIR /build
-COPY go.mod .
-COPY go.sum .
-COPY cmd/preprocess ./cmd/preprocess
-COPY internal ./internal
-COPY resources ./resources
-RUN ls -lah resources/references.json.gz
-RUN CGO_ENABLED=0 go run ./cmd/preprocess/main.go \
-    -in  resources/references.json.gz \
-    -out resources/references.bin && \
-    ls -lah resources/references.bin
+FROM --platform=linux/amd64 golang:1.22-alpine AS builder
+WORKDIR /src
+RUN apk add --no-cache ca-certificates tzdata git
 
-# Stage 2: build da API
-FROM golang:1.22-alpine AS builder
-WORKDIR /build
-COPY go.mod .
-COPY go.sum .
-COPY cmd/api ./cmd/api
-COPY internal ./internal
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /api ./cmd/api
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
 
-# Stage 3: imagem final mínima
-FROM alpine:3.19
+RUN mkdir -p /out/resources
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags='-s -w' -o /out/build-index ./cmd/preprocess
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags='-s -w' -o /out/api ./cmd/api
+RUN chmod +x /out/build-index /out/api
+
+COPY resources/references.json.gz /tmp/references.json.gz
+RUN /out/build-index -in /tmp/references.json.gz -out /out/resources/references.bin && \
+    ls -lah /out/resources && \
+    test -f /out/resources/references.bin && \
+    rm -f /tmp/references.json.gz
+
+FROM --platform=linux/amd64 alpine:3.20 AS runtime
 WORKDIR /app
-RUN apk add --no-cache ca-certificates wget
-COPY --from=builder      /api                            ./api
-COPY --from=preprocessor /build/resources/references.bin ./resources/references.bin
-COPY --from=preprocessor /build/resources/mcc_risk.json ./resources/mcc_risk.json
-COPY --from=preprocessor /build/resources/normalization.json ./resources/normalization.json
-ENV REFS_PATH=/app/resources/references.bin
+RUN apk add --no-cache ca-certificates tzdata
+
+COPY --from=builder /out/api /app/api
+COPY --from=builder /out/resources/references.bin /app/resources/references.bin
+COPY --from=builder /src/resources/normalization.json /app/resources/normalization.json
+COPY --from=builder /src/resources/mcc_risk.json /app/resources/mcc_risk.json
+
+RUN chmod +x /app/api
+
 EXPOSE 9999
-CMD ["./api"]
+CMD ["/app/api"]

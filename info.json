@@ -1,0 +1,10 @@
+{
+  "participants": ["Lucas Barros"],
+  "social": [
+    "https://github.com/lukebarros",
+    "https://www.linkedin.com/in/lucas-sbarros"
+  ],
+  "source-code-repo": "https://github.com/lukebarros/rinha-2026-go",
+  "stack": ["go"],
+  "open_to_work": false
+}

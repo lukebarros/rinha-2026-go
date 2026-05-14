@@ -1,11 +1,12 @@
 package server
 
 import (
-	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"sync/atomic"
 
+	"rinha/internal/json"
 	"rinha/internal/knn"
 	"rinha/internal/vectorizer"
 )
@@ -51,8 +52,15 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleFraudScore(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("read body: %v", err)
+		writeJSON(w, respBody{Approved: true, FraudScore: 0.4})
+		return
+	}
+
 	var req reqBody
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.Unmarshal(body, &req); err != nil {
 		// FALLBACK — nunca retorna erro HTTP
 		log.Printf("decode: %v", err)
 		writeJSON(w, respBody{Approved: true, FraudScore: 0.4})
@@ -74,5 +82,12 @@ func (s *Server) handleFraudScore(w http.ResponseWriter, r *http.Request) {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	data, err := json.Marshal(v)
+	if err != nil {
+		log.Printf("marshal: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	_, _ = w.Write(data)
+	_, _ = w.Write([]byte("\n"))
 }

@@ -15,6 +15,7 @@ WORKDIR /build
 COPY go.mod .
 COPY cmd/api ./cmd/api
 COPY internal ./internal
+RUN go mod tidy
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /api ./cmd/api
 
 # Stage 3: imagem final mínima

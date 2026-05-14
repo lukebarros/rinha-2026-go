@@ -1,0 +1,25 @@
+# Binários e build
+/api
+*.exe
+*.out
+*.bin
+*.gz
+
+# Go
+vendor/
+*.test
+*.prof
+coverage.out
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

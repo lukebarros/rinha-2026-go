@@ -19,19 +19,29 @@ services:
 
   api1:
     image: lukebarros/rinha-2026-go:latest
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:9999/ready"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
     deploy:
       resources:
         limits:
           cpus: "0.45"
-          memory: "155MB"
+          memory: "160MB"
 
   api2:
     image: lukebarros/rinha-2026-go:latest
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:9999/ready"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
     deploy:
       resources:
         limits:
           cpus: "0.45"
-          memory: "155MB"
+          memory: "160MB"
 
 networks:
   default:

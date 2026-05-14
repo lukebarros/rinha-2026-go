@@ -2,28 +2,33 @@
 FROM golang:1.22-alpine AS preprocessor
 WORKDIR /build
 COPY go.mod .
+COPY go.sum .
 COPY cmd/preprocess ./cmd/preprocess
 COPY internal ./internal
 COPY resources ./resources
-RUN go mod tidy
-RUN go run ./cmd/preprocess/main.go \
+RUN ls -lah resources/references.json.gz
+RUN CGO_ENABLED=0 go run ./cmd/preprocess/main.go \
     -in  resources/references.json.gz \
-    -out resources/references.bin
+    -out resources/references.bin && \
+    ls -lah resources/references.bin
 
 # Stage 2: build da API
 FROM golang:1.22-alpine AS builder
 WORKDIR /build
 COPY go.mod .
+COPY go.sum .
 COPY cmd/api ./cmd/api
 COPY internal ./internal
-RUN go mod tidy
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /api ./cmd/api
 
 # Stage 3: imagem final mínima
 FROM alpine:3.19
 WORKDIR /app
+RUN apk add --no-cache ca-certificates wget
 COPY --from=builder      /api                            ./api
 COPY --from=preprocessor /build/resources/references.bin ./resources/references.bin
+COPY --from=preprocessor /build/resources/mcc_risk.json ./resources/mcc_risk.json
+COPY --from=preprocessor /build/resources/normalization.json ./resources/normalization.json
 ENV REFS_PATH=/app/resources/references.bin
 EXPOSE 9999
 CMD ["./api"]

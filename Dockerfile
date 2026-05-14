@@ -5,6 +5,7 @@ COPY go.mod .
 COPY cmd/preprocess ./cmd/preprocess
 COPY internal ./internal
 COPY resources ./resources
+RUN go mod tidy
 RUN go run ./cmd/preprocess/main.go \
     -in  resources/references.json.gz \
     -out resources/references.bin
